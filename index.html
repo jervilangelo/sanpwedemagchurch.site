@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SanPwedengMagChurch — A Directory of Faithful Churches in the Philippines</title>
+<meta name="description" content="A personally known directory of Bible-faithful, Reformed churches across the Philippines.">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"}}</script>
+</head><body>
+<header id="nav"><a class="brand" href="#/"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#014eb7" stroke-width="2.2" stroke-linecap="round"><path d="M12 2v20M6 8h12"/></svg><span>SanPweding<b>MagChurch</b></span></a>
+<nav><a href="#/">Map</a><a href="#/directory">Directory</a><a href="#/about">About</a></nav></header>
+<main>
+<section id="home" class="view">
+ <div class="hero"><p class="eyebrow">A church directory for the Philippines</p><h1>San pwedeng magchurch?</h1>
+ <p class="lead">Where can we go to church? A hand-kept list of churches I personally know — committed to Scripture, sound biblical teaching, and the Reformed faith.</p>
+ <form class="search" id="hs"><input id="hq" placeholder="Search by church, city, province or region" aria-label="Search"><button>Search</button></form></div>
+ <div class="stage"><div id="mapcol"><div id="map"></div><div id="tip"></div><button id="back" type="button" hidden>← Philippines</button><div id="loader"><i></i></div></div>
+  <div class="side"><h2 id="rtitle">Philippines</h2><p id="rsub"></p><select id="sel" aria-label="Choose a region"></select>
+  <div class="panel"><h4 id="rcount"></h4><div id="list"></div></div></div></div>
+ <div class="wrap"><div class="pillars"><div><h3>Faithful to Scripture</h3><p>Churches that submit to the Bible as God's Word.</p></div><div><h3>Sound teaching</h3><p>Committed to biblical preaching and teaching.</p></div><div><h3>Reformed</h3><p>Aligned with a Reformed theological perspective.</p></div></div></div>
+</section>
+<section id="directory" class="view" hidden><div class="wrap"><h1>Church Directory</h1>
+ <div class="bar"><input id="dq" placeholder="Search name, city, province, region" aria-label="Search churches"><select id="dr" aria-label="Region"></select></div>
+ <p id="dc"></p><div class="grid" id="dl"></div></div></section>
+<section id="church" class="view" hidden></section>
+<section id="about" class="view" hidden><div class="wrap about" style="max-width:720px"><p class="eyebrow">About</p><h1>Why this directory exists</h1>
+<!-- EDIT THIS PAGE: replace with your own wording, confessions and criteria. -->
+<p>Many Filipinos ask, <em>"San pwedeng magchurch?"</em> This directory is a growing list of churches I personally know and consider faithful to Scripture, committed to sound biblical teaching, and aligned with a Reformed theological perspective.</p>
+<h2>What I believe</h2><p>[Add your theological convictions here — e.g. the confessions or statements you hold to.]</p>
+<h2>Criteria for inclusion</h2><ul><li>I personally know the church.</li><li>It is faithful to Scripture.</li><li>It is committed to sound biblical teaching.</li><li>It is aligned with a Reformed theological perspective.</li></ul>
+<p class="note">Listings are personal recommendations, not official endorsements. Always confirm service times with the church.</p></div></section>
+</main>
+<footer>© SanPwedengMagChurch · <span id="fe"></span></footer>
+<script src="data/regions.js"></script><script src="data/churches.js"></script>
+<script type="module">
+import*as THREE from"three";
+const R=window.REGIONS,C=window.CHURCHES||[],$=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const rid=Object.fromEntries(R.map(r=>[r.id,r])),n=id=>C.filter(c=>c.region===id).length;
+const loc=c=>[c.city,c.province].filter(Boolean).join(", ");
+const card=c=>`<a class="card" href="#/church/${encodeURIComponent(c.id)}"><h3>${esc(c.name)}${c.sample?'<span class="tag">Sample</span>':""}</h3><p>${esc(loc(c))} · ${esc(rid[c.region]?.code||"")}</p>${c.schedule?.[0]?`<p class="sched">${esc(c.schedule[0])}</p>`:""}</a>`;
+const opts=`<option value="all">All regions</option>`+R.map(r=>`<option value="${r.id}">${esc(r.name)} (${n(r.id)})</option>`).join("");
+$("#sel").innerHTML=$("#dr").innerHTML=opts;
+if(window.SITE?.email)$("#fe").innerHTML=`<a href="mailto:${esc(SITE.email)}">${esc(SITE.email)}</a>`;
+const st={q:"",region:"all"};
+// ---------- MAP: real boundaries loaded from data/geo (country view = all regions, region view = that region's provinces)
+const GEO={base:"data/geo",country:"lowres",region:"medres",codes:{ncr:"1300000000",car:"1400000000",r1:"100000000",r2:"200000000",r3:"300000000",r4a:"400000000",r4b:"1700000000",r5:"500000000",r6:"600000000",r7:"700000000",r8:"800000000",r9:"900000000",r10:"1000000000",r11:"1100000000",r12:"1200000000",r13:"1600000000",barmm:"1900000000"}};
+const SUF={lowres:"001",medres:"01",hires:"1"},cache={};
+const gurl=(id,res)=>`${GEO.base}/regions/${res}/provdists-region-${GEO.codes[id]}.0.${SUF[res]}.json`;
+const getGeo=(id,res)=>cache[id+res]||(cache[id+res]=fetch(gurl(id,res)).then(r=>r.ok?r.json():Promise.reject(Error(gurl(id,res)+" -> HTTP "+r.status))).then(fc=>fc.features||[]).catch(e=>{delete cache[id+res];throw e}));
+const NAME_KEYS=["adm2_en","ADM2_EN","adm3_en","name","NAME","provName"];
+const fname=f=>{const p=f.properties||{};for(const k of NAME_KEYS)if(p[k])return String(p[k]);const k=Object.keys(p).find(k=>/_en$/i.test(k)&&p[k]);return k?String(p[k]):"Area"};
+const norm=s=>String(s||"").toLowerCase().replace(/\(.*?\)/g,"").replace(/^(province of|city of)\s+/,"").replace(/[^a-z0-9]+/g," ").trim();
+const inProv=(c,name)=>{const k=norm(name);return norm(c.province)===k||norm(c.city)===k};
+const plural=k=>`${k} ${k===1?"church":"churches"}`;
+const schematic=id=>R.filter(r=>!id||r.id===id).flatMap(r=>r.geo.map(ring=>({geom:{type:"Polygon",coordinates:[ring]},key:r.id,name:r.name,n:n(r.id)})));
+async function entries(id){
+ if(id==="all"){const ids=Object.keys(GEO.codes),all=await Promise.all(ids.map(i=>getGeo(i,GEO.country)));
+  return all.flatMap((fs,i)=>fs.map(f=>({geom:f.geometry,key:ids[i],name:rid[ids[i]]?.name||ids[i],n:n(ids[i])})))}
+ const fs=await getGeo(id,GEO.region);
+ return fs.map(f=>{const nm=fname(f);return{geom:f.geometry,key:nm,name:nm,n:C.filter(c=>c.region===id&&inProv(c,nm)).length}})}
+
+// ---------- State + side panel
+let view="all",prov=null,fb=false,draw=async()=>{};
+const back=$("#back"),loader=$("#loader");
+function panel(){const r=rid[view],t=$("#rtitle");let title="Philippines",sub="Select a region on the map",l=C;
+ if(r){title=r.name;sub=r.full+(fb?"":" · click a province");l=C.filter(c=>c.region===view);
+  if(prov){title=prov.name;sub=r.full;l=l.filter(c=>inProv(c,prov.name))}}
+ t.textContent=title;t.classList.remove("swap");void t.offsetWidth;t.classList.add("swap");
+ $("#rsub").textContent=sub;$("#rcount").textContent=plural(l.length);
+ $("#list").innerHTML=l.length?l.map(card).join(""):`<p class="empty">No churches listed ${prov?"in this province":"in this region"} yet.</p>`}
+async function go(id,pn){view=id;prov=null;$("#sel").value=id;back.hidden=id==="all";panel();await draw(pn)}
+$("#sel").onchange=e=>go(e.target.value);back.onclick=()=>go("all");
+addEventListener("keydown",e=>{if(e.key==="Escape"&&view!=="all"){if(prov){prov=null;panel()}else go("all")}});
+
+// ---------- Three.js (extruded shapes, hover lift, click select, tilted ortho camera)
+const el=$("#map"),tip=$("#tip");let ren;
+try{ren=new THREE.WebGLRenderer({antialias:true,alpha:true})}catch(e){el.innerHTML='<p class="nogl">3D map unavailable in this browser — use the region menu.</p>'}
+let fit=()=>{};
+if(ren){
+const H0=18,H1=36,COL={base:0xD2E0F7,has:0xF4DC9A,hover:0x8FB3F5,sel:0x5B8DEF,side:0x878C9F};
+ren.setClearColor(0,0);ren.setPixelRatio(Math.min(devicePixelRatio,2));ren.shadowMap.enabled=true;ren.shadowMap.type=THREE.PCFSoftShadowMap;el.appendChild(ren.domElement);
+const scene=new THREE.Scene(),cam=new THREE.OrthographicCamera(-1,1,1,-1,.1,10000),grp=new THREE.Group();scene.add(grp,new THREE.AmbientLight(0xffffff,1.8));
+const dl=new THREE.DirectionalLight(0xffffff,2.5);dl.position.set(-500,1000,500);dl.castShadow=true;scene.add(dl);
+const polys=g=>!g?[]:g.type==="Polygon"?[g.coordinates]:g.type==="MultiPolygon"?g.coordinates:[];
+let items=[],bb=null,hover=null,seq=0;
+function build(es){
+ grp.traverse(o=>{o.geometry?.dispose();[].concat(o.material||[]).forEach(m=>m.dispose())});grp.clear();items=[];hover=null;bb=null;
+ let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+ es.forEach(e=>polys(e.geom).forEach(p=>p[0].forEach(([x,y])=>{x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y)})));
+ if(x0>x1){fit();return}
+ const cx=(x0+x1)/2,cy=(y0+y1)/2,kx=Math.cos(cy*Math.PI/180),S=1000/Math.max((x1-x0)*kx,y1-y0,1e-6),pt=([x,y])=>new THREE.Vector2((x-cx)*kx*S,(y-cy)*S);
+ const side=new THREE.MeshStandardMaterial({color:COL.side,roughness:.8}),line=new THREE.LineBasicMaterial({color:0,depthWrite:false}),by={};
+ es.forEach(e=>{let it=by[e.key];
+  if(!it){const base=e.n?COL.has:COL.base;it=by[e.key]={key:e.key,name:e.name,n:e.n,h:H0,base,col:new THREE.Color(base),top:new THREE.MeshStandardMaterial({color:base,roughness:.7}),g:new THREE.Group()};it.g.userData=it;items.push(it);grp.add(it.g)}
+  polys(e.geom).forEach(p=>{const sh=new THREE.Shape(p[0].map(pt));p.slice(1).forEach(h=>sh.holes.push(new THREE.Path(h.map(pt))));
+   const m=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:H0,bevelEnabled:false}),[it.top,side]);m.rotation.x=-Math.PI/2;m.castShadow=m.receiveShadow=true;
+   m.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(sh.getPoints().map(q=>new THREE.Vector3(q.x,q.y,H0+.4))),line));it.g.add(m)})});
+ grp.updateMatrixWorld(true);bb=new THREE.Box3().setFromObject(grp);fit()}
+fit=()=>{const w=el.clientWidth,h=el.clientHeight;if(!w||!h)return;ren.setSize(w,h,false);if(!bb)return;
+ const sz=bb.getSize(new THREE.Vector3()),c=bb.getCenter(new THREE.Vector3()),a=w/h,t=THREE.MathUtils.degToRad(30),
+  vh=Math.max(sz.z*Math.cos(t)+H1*Math.sin(t),sz.x/a)*1.15+20;
+ Object.assign(cam,{left:-vh*a/2,right:vh*a/2,top:vh/2,bottom:-vh/2});cam.position.set(c.x,c.y+Math.cos(t)*1000,c.z+Math.sin(t)*1000);cam.lookAt(c);cam.updateProjectionMatrix()};
+new ResizeObserver(fit).observe(el);
+draw=async pn=>{const my=++seq;loader.classList.add("on");let es;
+ try{es=await entries(view);fb=false}catch(e){console.warn("Boundary data unavailable, using schematic shapes:",e.message);es=schematic(view==="all"?null:view);fb=true}
+ if(my!==seq)return;
+ build(es);loader.classList.remove("on");
+ if(pn&&!fb){const it=items.find(i=>norm(i.name)===norm(pn));if(it){prov={key:it.key,name:it.name}}}
+ panel()};
+const ray=new THREE.Raycaster(),mouse=new THREE.Vector2(9999,9999),tmp=new THREE.Color();let px=0,py=0;
+const ndc=e=>{const r=ren.domElement.getBoundingClientRect();px=e.clientX-r.left;py=e.clientY-r.top;return new THREE.Vector2(px/r.width*2-1,-(py/r.height)*2+1)};
+const pick=v=>{ray.setFromCamera(v,cam);const h=ray.intersectObjects(grp.children,true)[0];if(!h)return null;let o=h.object;while(o.parent!==grp)o=o.parent;return o};
+const cv=ren.domElement;cv.addEventListener("pointermove",e=>mouse.copy(ndc(e)));cv.addEventListener("pointerleave",()=>mouse.set(9999,9999));
+cv.addEventListener("click",e=>{const g=pick(ndc(e));
+ if(view==="all"){if(g)go(g.userData.key)}
+ else if(!fb){const d=g&&g.userData;prov=d&&!(prov&&prov.key===d.key)?{key:d.key,name:d.name}:null;panel()}});
+(function loop(){requestAnimationFrame(loop);if(!el.clientWidth)return;hover=pick(mouse);cv.style.cursor=hover?"pointer":"default";
+ const sk=prov&&!fb?prov.key:null;
+ items.forEach(d=>{const s=d.key===sk,h=d.g===hover;d.h+=((s||h?H1:H0)-d.h)*.15;d.g.scale.y=d.h/H0;
+  d.col.lerp(tmp.set(s?COL.sel:h?COL.hover:d.base),.15);d.top.color.copy(d.col)});
+ if(hover){const d=hover.userData;tip.textContent=`${d.name} · ${plural(d.n)}`;tip.style.left=px+"px";tip.style.top=py+"px";tip.classList.add("on")}else tip.classList.remove("on");
+ ren.render(scene,cam)})();
+}
+// ---------- Views
+function match(c){const r=rid[c.region]||{},q=st.q.trim().toLowerCase();return(st.region==="all"||c.region===st.region)&&(!q||[c.name,c.city,c.province,c.address,c.denomination,r.name,r.code,r.full].join(" ").toLowerCase().includes(q))}
+function dir(){$("#dq").value=st.q;$("#dr").value=st.region;const l=C.filter(match);$("#dc").textContent=`Showing ${l.length} of ${C.length} churches`;$("#dl").innerHTML=l.length?l.map(card).join(""):`<p class="empty">No churches match your search.</p>`}
+$("#dq").oninput=e=>{st.q=e.target.value;dir()};$("#dr").onchange=e=>{st.region=e.target.value;dir()};
+$("#hs").onsubmit=e=>{e.preventDefault();st.q=$("#hq").value;st.region="all";location.hash="#/directory";dir()};
+const url=u=>/^https?:\/\//i.test(u)?u:"https://"+u,row=(l,v)=>v?`<li><b>${l}</b><span>${v}</span></li>`:"";
+function profile(id){const c=C.find(x=>x.id===id),v=$("#church");
+ if(!c){v.innerHTML=`<div class="wrap"><h1>Church not found</h1><a href="#/directory">← Back to directory</a></div>`;return}
+ const r=rid[c.region]||{},a=c.address?`${esc(c.address)} · <a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([c.name,c.address,loc(c)].join(" "))}">Directions</a>`:"";
+ v.innerHTML=`<div class="wrap profile" style="max-width:720px"><a href="#/directory">← Directory</a><p class="eyebrow" style="margin-top:24px">${esc(r.full||"")}</p><h1>${esc(c.name)}${c.sample?'<span class="tag">Sample</span>':""}</h1>${c.sample?'<p class="note">This is a placeholder listing — not a real church.</p>':""}
+ <ul>${row("Location",esc(loc(c)))}${row("Address",a)}${row("Tradition",esc(c.denomination))}${row("Services",(c.schedule||[]).map(esc).join("<br>"))}${row("Website",c.website&&`<a target="_blank" rel="noopener" href="${esc(url(c.website))}">${esc(c.website)}</a>`)}${row("Facebook",c.facebook&&`<a target="_blank" rel="noopener" href="${esc(url(c.facebook))}">${esc(c.facebook)}</a>`)}${row("Phone",c.phone&&`<a href="tel:${esc(c.phone)}">${esc(c.phone)}</a>`)}${row("Email",c.email&&`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`)}</ul>
+ ${c.notes?`<p>${esc(c.notes)}</p>`:""}<p><a class="btn" href="#/" data-r="${esc(c.region)}" data-p="${esc(c.province)}">See on map</a></p></div>`}
+function route(){const[,v="",a=""]=location.hash.slice(1).split("/"),view=["directory","church","about"].includes(v)?v:"home";
+ document.querySelectorAll(".view").forEach(e=>e.hidden=e.id!==view);
+ document.querySelectorAll("#nav nav a").forEach(x=>x.classList.toggle("on",x.getAttribute("href")==="#/"+(view==="home"?"":view)));
+ if(view==="directory")dir();if(view==="church")profile(decodeURIComponent(a));
+ if(view==="home"){requestAnimationFrame(fit);try{const r=sessionStorage.r;if(r){const p=sessionStorage.p;sessionStorage.removeItem("r");sessionStorage.removeItem("p");go(r,p)}}catch(e){}}
+ scrollTo(0,0)}
+$("#church").addEventListener("click",e=>{const a=e.target.closest("[data-r]");if(a)try{sessionStorage.r=a.dataset.r;sessionStorage.p=a.dataset.p||""}catch(x){}});
+addEventListener("hashchange",route);go("all");route();
+</script></body></html>
